@@ -1,0 +1,24 @@
+# Flutter/Dart
+build/
+.dart_tool/
+.idea/
+*.iml
+
+# Laravel
+vendor/
+storage/
+.env
+.phpunit.cache
+Homestead.json
+Homestead.yaml
+
+# Node/npm
+node_modules/
+
+# OS/mac
+.DS_Store
+
+# Fichiers de tests/images générées
+*.jpg
+*.jpeg
+*.png
