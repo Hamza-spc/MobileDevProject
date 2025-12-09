@@ -1,24 +1,61 @@
-# Flutter/Dart
-build/
-.dart_tool/
-.idea/
-*.iml
-
-# Laravel
-vendor/
-storage/
-.env
-.phpunit.cache
-Homestead.json
-Homestead.yaml
-
-# Node/npm
-node_modules/
-
-# OS/mac
+# Fichiers système
 .DS_Store
+Thumbs.db
+*.log
 
-# Fichiers de tests/images générées
+# Fichiers de test/images
 *.jpg
 *.jpeg
 *.png
+!mobile/web/favicon.png
+
+# Laravel
+backend/.env
+backend/.env.backup
+backend/.env.production
+backend/vendor/
+backend/storage/app/public/uploads/*
+!backend/storage/app/public/uploads/.gitignore
+backend/storage/logs/*
+!backend/storage/logs/.gitignore
+backend/storage/framework/cache/*
+!backend/storage/framework/cache/.gitignore
+backend/storage/framework/sessions/*
+!backend/storage/framework/sessions/.gitignore
+backend/storage/framework/views/*
+!backend/storage/framework/views/.gitignore
+backend/bootstrap/cache/*
+!backend/bootstrap/cache/.gitignore
+
+# Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/.flutter-plugins-dependencies
+mobile/.flutter-plugins
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+
+# Node modules
+node_modules/
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+

@@ -29,7 +29,6 @@ class FullRegistrationController extends Controller
             'bac_series'       => 'required|string',
             'bac_average'      => 'required|numeric',
             'bac_school'       => 'required|string',
-            'parent_info'      => 'nullable|json',
             'tutor_contact'    => 'nullable|string',
             'cin_number'       => 'required|string|unique:students,cin_number',
             'password'         => 'required|string|confirmed',
@@ -66,7 +65,6 @@ class FullRegistrationController extends Controller
             'bac_series'        => $fields['bac_series'],
             'bac_average'       => $fields['bac_average'],
             'bac_school'        => $fields['bac_school'],
-            'parent_info'       => $fields['parent_info'] ?? null,
             'tutor_contact'     => $fields['tutor_contact'] ?? null,
             'cin_number'        => $fields['cin_number'],
         ]);
@@ -92,11 +90,13 @@ class FullRegistrationController extends Controller
         foreach ($docFields as $key => $type) {
             if ($request->hasFile($key)) {
                 $file = $request->file($key);
-                $path = $file->storeAs('public/uploads', Str::random(10).'_'.$file->getClientOriginalName());
+                $path = $file->storeAs('uploads', Str::random(10).'_'.$file->getClientOriginalName(), 'public');
+                // Retourner seulement le chemin relatif, pas l'URL complète
+                $relativePath = '/storage/' . $path;
                 $document = Document::create([
                     'student_id' => $student->id,
                     'type' => $type,
-                    'file_path' => Storage::url($path),
+                    'file_path' => $relativePath,
                     'upload_date' => now(),
                     'status' => 'pending',
                 ]);

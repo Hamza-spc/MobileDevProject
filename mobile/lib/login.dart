@@ -19,8 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> login() async {
     setState(() { loading = true; });
     final url = isAdmin
-        ? Uri.parse('http://localhost:8000/api/admin/login')
-        : Uri.parse('http://localhost:8000/api/login');
+        ? Uri.parse('http://127.0.0.1:8000/api/admin/login')
+        : Uri.parse('http://127.0.0.1:8000/api/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

@@ -25,7 +25,7 @@ class _SuiviDossierScreenState extends State<SuiviDossierScreen> {
   Future<void> fetchStatutDossier() async {
     setState(() { loading = true; error=null; });
     try {
-      final uriReg = Uri.parse('http://localhost:8000/api/etudiant/statut?email=${Uri.encodeComponent(widget.email)}');
+      final uriReg = Uri.parse('http://127.0.0.1:8000/api/etudiant/statut?email=${Uri.encodeComponent(widget.email)}');
       final resp = await http.get(uriReg, headers: {
         'Authorization': 'Bearer ${widget.token}',
         'Accept': 'application/json',

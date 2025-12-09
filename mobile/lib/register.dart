@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
+import 'dart:convert';
 
 enum FileTypeKey {photoBac, cinRecto, cinVerso, photoPerso}
 
@@ -12,7 +12,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  String firstName = '', lastName = '', email = '', phoneNumber = '', dateOfBirth = '', birthPlace = '', address = '', gender = '', bacYear = '', bacSeries = '', bacAverage = '', bacSchool = '', parentInfo = '', tutorContact = '', cinNumber = '', password = '', passconf = '', program = '', level = '', schoolYear = '';
+  String firstName = '', lastName = '', email = '', phoneNumber = '', dateOfBirth = '', birthPlace = '', address = '', gender = '', bacYear = '', bacSeries = '', bacAverage = '', bacSchool = '', tutorContact = '', cinNumber = '', password = '', passconf = '', program = '', level = '', schoolYear = '';
   Map<FileTypeKey, XFile?> files = {
     FileTypeKey.photoBac: null,
     FileTypeKey.cinRecto: null,
@@ -37,8 +37,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     setState(() => loading = true);
-    var uri = Uri.parse('http://localhost:8000/api/register-full');
+    var uri = Uri.parse('http://127.0.0.1:8000/api/register-full');
+    
+    // Déterminer le type MIME basé sur l'extension du fichier
+    String getMimeType(String filename) {
+      final ext = filename.toLowerCase().split('.').last;
+      if (ext == 'jpg' || ext == 'jpeg') return 'image/jpeg';
+      if (ext == 'png') return 'image/png';
+      return 'image/jpeg'; // Par défaut
+    }
+    
     var request = http.MultipartRequest('POST', uri)
+      ..headers.addAll({
+        'Accept': 'application/json',
+      })
       ..fields['first_name'] = firstName
       ..fields['last_name'] = lastName
       ..fields['email'] = email
@@ -47,11 +59,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ..fields['birth_place'] = birthPlace
       ..fields['address'] = address
       ..fields['gender'] = gender
-      ..fields['bac_year'] = bacYear
+      ..fields['bac_year'] = int.tryParse(bacYear)?.toString() ?? bacYear
       ..fields['bac_series'] = bacSeries
-      ..fields['bac_average'] = bacAverage
+      ..fields['bac_average'] = double.tryParse(bacAverage)?.toString() ?? bacAverage
       ..fields['bac_school'] = bacSchool
-      ..fields['parent_info'] = parentInfo
       ..fields['tutor_contact'] = tutorContact
       ..fields['cin_number'] = cinNumber
       ..fields['password'] = password
@@ -59,21 +70,87 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ..fields['program'] = program
       ..fields['level'] = level
       ..fields['school_year'] = schoolYear;
-    request.files.add(await http.MultipartFile.fromPath('photo_bac', files[FileTypeKey.photoBac]!.path));
-    request.files.add(await http.MultipartFile.fromPath('cin_recto', files[FileTypeKey.cinRecto]!.path));
-    request.files.add(await http.MultipartFile.fromPath('cin_verso', files[FileTypeKey.cinVerso]!.path));
+    
+    // Lire les bytes des fichiers (compatible web/mobile)
+    final photoBacBytes = await files[FileTypeKey.photoBac]!.readAsBytes();
+    final cinRectoBytes = await files[FileTypeKey.cinRecto]!.readAsBytes();
+    final cinVersoBytes = await files[FileTypeKey.cinVerso]!.readAsBytes();
+    
+    final photoBacName = files[FileTypeKey.photoBac]!.name;
+    final cinRectoName = files[FileTypeKey.cinRecto]!.name;
+    final cinVersoName = files[FileTypeKey.cinVerso]!.name;
+    
+    request.files.add(http.MultipartFile.fromBytes(
+      'photo_bac',
+      photoBacBytes,
+      filename: photoBacName,
+      contentType: http.MediaType.parse(getMimeType(photoBacName)),
+    ));
+    request.files.add(http.MultipartFile.fromBytes(
+      'cin_recto',
+      cinRectoBytes,
+      filename: cinRectoName,
+      contentType: http.MediaType.parse(getMimeType(cinRectoName)),
+    ));
+    request.files.add(http.MultipartFile.fromBytes(
+      'cin_verso',
+      cinVersoBytes,
+      filename: cinVersoName,
+      contentType: http.MediaType.parse(getMimeType(cinVersoName)),
+    ));
     if (files[FileTypeKey.photoPerso] != null) {
-      request.files.add(await http.MultipartFile.fromPath('photo_perso', files[FileTypeKey.photoPerso]!.path));
+      final photoPersoBytes = await files[FileTypeKey.photoPerso]!.readAsBytes();
+      final photoPersoName = files[FileTypeKey.photoPerso]!.name;
+      request.files.add(http.MultipartFile.fromBytes(
+        'photo_perso',
+        photoPersoBytes,
+        filename: photoPersoName,
+        contentType: http.MediaType.parse(getMimeType(photoPersoName)),
+      ));
     }
     try {
-      var response = await request.send();
-      setState(() => loading = false);
+      var response = await request.send().timeout(Duration(seconds: 30));
       var resp = await response.stream.bytesToString();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response.statusCode==200 ? 'Succès: $resp' : 'Erreur: $resp')));
-      if (response.statusCode == 200) Navigator.pop(context);
+      setState(() => loading = false);
+      
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Inscription réussie !'), backgroundColor: Colors.green)
+        );
+        Navigator.pop(context);
+      } else {
+        // Essayer de parser les erreurs de validation Laravel
+        String errorMsg = 'Erreur lors de l\'inscription';
+        try {
+          final decoded = json.decode(resp);
+          if (decoded['message'] != null) {
+            errorMsg = decoded['message'];
+          } else if (decoded['errors'] != null) {
+            final errors = decoded['errors'] as Map;
+            errorMsg = errors.values.map((v) => (v as List).join(', ')).join('\n');
+          } else {
+            errorMsg = resp.length > 200 ? resp.substring(0, 200) : resp;
+          }
+        } catch (_) {
+          errorMsg = resp.length > 200 ? resp.substring(0, 200) : resp;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red, duration: Duration(seconds: 5))
+        );
+      }
     } catch (e) {
       setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur lors de l\'envoi: $e')));
+      String errorMsg = 'Erreur lors de l\'envoi';
+      if (e.toString().contains('TimeoutException')) {
+        errorMsg = 'Le serveur ne répond pas. Vérifiez que le serveur Laravel est lancé (php artisan serve).';
+      } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        errorMsg = 'Impossible de se connecter au serveur. Vérifiez votre connexion et que le serveur est lancé.';
+      } else {
+        errorMsg = 'Erreur : $e';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red, duration: Duration(seconds: 5))
+      );
     }
   }
 
@@ -105,7 +182,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           Icon(Icons.insert_drive_file, color: Colors.indigo),
           SizedBox(width:8),
-          Expanded(child: Text(f!=null?f.path.split("/").last:label,
+          Expanded(child: Text(f!=null?f.name:label,
             style: TextStyle(color:f!=null?Colors.green[700]:Colors.grey, fontWeight: f!=null ? FontWeight.bold:FontWeight.normal), overflow: TextOverflow.ellipsis,)),
           if (f!=null)
             Padding(
@@ -187,8 +264,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(decoration:inputDeco('Moyenne Bac',Icons.grade), keyboardType:TextInputType.numberWithOptions(decimal:true), onChanged:(v)=>bacAverage=v, validator:(v)=>v!.isEmpty?'Obligatoire':null),
                   SizedBox(height:10),
                   TextFormField(decoration:inputDeco("Établissement Bac",Icons.business), onChanged:(v)=>bacSchool=v, validator:(v)=>v!.isEmpty?'Obligatoire':null),
-                  SizedBox(height:10),
-                  TextFormField(decoration:inputDeco('Parents / Responsable légal (optionnel)',Icons.family_restroom), onChanged:(v)=>parentInfo=v),
                   SizedBox(height:10),
                   TextFormField(decoration:inputDeco('Tuteur contact (optionnel)',Icons.contact_phone), onChanged:(v)=>tutorContact=v),
                   SizedBox(height:10),

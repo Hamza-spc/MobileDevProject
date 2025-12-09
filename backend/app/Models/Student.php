@@ -20,7 +20,6 @@ class Student extends Model
         'bac_series',
         'bac_average',
         'bac_school',
-        'parent_info',
         'tutor_contact',
         'cin_number',
         'registration_status',

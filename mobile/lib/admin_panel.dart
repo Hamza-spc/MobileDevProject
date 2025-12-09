@@ -41,7 +41,7 @@ class _AdminPanelFlutterState extends State<AdminPanelFlutter> {
 
   Future<void> fetchRegistrations() async {
     setState(() { loading = true; error=null; });
-    final uri = Uri.parse('http://localhost:8000/api/admin/registrations');
+    final uri = Uri.parse('http://127.0.0.1:8000/api/admin/registrations');
     try {
       final resp = await http.get(uri, headers: {
         'Authorization': 'Bearer ${widget.token}',

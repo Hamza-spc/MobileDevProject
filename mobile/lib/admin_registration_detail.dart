@@ -30,7 +30,7 @@ class _AdminRegistrationDetailState extends State<AdminRegistrationDetail> {
 
   Future<void> updateStatus() async {
     setState(() { loading = true; });
-    final url = Uri.parse('http://localhost:8000/api/admin/registrations/${reg['id']}/status');
+    final url = Uri.parse('http://127.0.0.1:8000/api/admin/registrations/${reg['id']}/status');
     final resp = await http.post(url,
       headers: {
         'Content-Type': 'application/json',
@@ -61,13 +61,207 @@ class _AdminRegistrationDetailState extends State<AdminRegistrationDetail> {
     onChanged: (v) => setState(() => statut = v ?? 'pending'),
   );
 
-  Widget docItem(Map doc) => ListTile(
-    title: Text(doc['type']??''),
-    subtitle: Text(doc['file_path']??''),
-    trailing: (doc['file_path']??'').endsWith('.jpg') || (doc['file_path']??'').endsWith('.png') 
-      ? Image.network('http://localhost:8000${doc['file_path']}', width: 40, height: 40, errorBuilder: (_,__,___)=>Icon(Icons.broken_image))
-      : null,
-  );
+  String getDocTypeLabel(String? type) {
+    switch(type) {
+      case 'photo_bac': return 'Photo du Baccalauréat';
+      case 'cin_recto': return 'CIN - Recto';
+      case 'cin_verso': return 'CIN - Verso';
+      case 'photo_perso': return 'Photo personnelle';
+      default: return type ?? 'Document';
+    }
+  }
+
+  void showImageFullScreen(String imageUrl, String title) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                headers: {
+                  'Accept': 'image/*',
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  print('Erreur plein écran: $error');
+                  print('URL: $imageUrl');
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('Impossible de charger l\'image', style: TextStyle(color: Colors.grey)),
+                      SizedBox(height: 8),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(imageUrl, style: TextStyle(color: Colors.grey[600], fontSize: 10)),
+                      ),
+                    ],
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(child: CircularProgressIndicator());
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget docItem(Map doc) {
+    final filePath = doc['file_path'] ?? '';
+    final docType = doc['type'] ?? '';
+    final isImage = filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png');
+    // TOUJOURS utiliser la route API pour les images (avec CORS)
+    String imageUrl;
+    if (filePath.startsWith('/storage/')) {
+      // Enlever le /storage/ du début et utiliser la route API
+      final pathWithoutStorage = filePath.replaceFirst('/storage/', '');
+      imageUrl = 'http://127.0.0.1:8000/api/storage/$pathWithoutStorage';
+    } else if (filePath.startsWith('http://localhost/storage/')) {
+      // Gérer les anciens chemins avec localhost
+      final pathWithoutStorage = filePath.replaceFirst('http://localhost/storage/', '');
+      imageUrl = 'http://127.0.0.1:8000/api/storage/$pathWithoutStorage';
+    } else {
+      imageUrl = 'http://127.0.0.1:8000$filePath';
+    }
+    print('Image URL: $imageUrl'); // Debug
+    
+    return Card(
+      margin: EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.description, color: Colors.blue),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    getDocTypeLabel(docType),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            if (isImage)
+              GestureDetector(
+                onTap: () => showImageFullScreen(imageUrl, getDocTypeLabel(docType)),
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        headers: {
+                          'Accept': 'image/*',
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          print('Erreur chargement image: $error');
+                          print('URL: $imageUrl');
+                          print('Stack trace: $stackTrace');
+                          return Container(
+                            color: Colors.grey[200],
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.broken_image, size: 48, color: Colors.grey[400]),
+                                SizedBox(height: 8),
+                                Text('Image non disponible', style: TextStyle(color: Colors.grey[600])),
+                                SizedBox(height: 4),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    imageUrl,
+                                    style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    // Ouvrir l'URL dans le navigateur pour tester
+                                    print('Tester URL: $imageUrl');
+                                  },
+                                  icon: Icon(Icons.open_in_browser, size: 16),
+                                  label: Text('Tester URL'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 8),
+                                Text('Chargement...', style: TextStyle(color: Colors.grey[600])),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ),
+              )
+            else
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.insert_drive_file, size: 32, color: Colors.grey[600]),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        filePath.split('/').last,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(height: 8),
+            if (isImage)
+              TextButton.icon(
+                onPressed: () => showImageFullScreen(imageUrl, getDocTypeLabel(docType)),
+                icon: Icon(Icons.fullscreen, size: 18),
+                label: Text('Voir en plein écran'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

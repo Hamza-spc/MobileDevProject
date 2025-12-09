@@ -25,3 +25,17 @@ Route::middleware(['auth:sanctum', AdminOnly::class])->prefix('admin')->group(fu
     Route::get('/registrations/{id}', [AdminPanelController::class, 'showRegistration']);
     Route::post('/registrations/{id}/status', [AdminPanelController::class, 'updateRegistrationStatus']);
 });
+
+// Route pour servir les images avec CORS
+Route::get('/storage/{path}', function ($path) {
+    $filePath = storage_path('app/public/' . $path);
+    if (!file_exists($filePath)) {
+        return response()->json(['error' => 'File not found'], 404);
+    }
+    $mimeType = mime_content_type($filePath);
+    return response()->file($filePath, [
+        'Content-Type' => $mimeType,
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET',
+    ]);
+})->where('path', '.*');
